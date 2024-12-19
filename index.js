@@ -3,7 +3,7 @@ const  port= process.env.PORT || 4000
 const multer = require('multer');
 const app = express();
 const fs = require('fs')
-const { fork } = require('child_process');
+const { fork ,exec, execFile, spawn} = require('child_process');
 const f = new Map();
 const count = 5;
 const time = 60*1000
@@ -77,6 +77,78 @@ app.post('/uploads',upload.single('img'), async (req,res)=>{
 app.get('/',Limiter,(req,res)=>{
     res.write("hello")
     res.end();
+})
+
+app.get('/exec',(req,res)=>{
+
+    exec('cd Files && ls -l',(err,stdout,stderr)=>{
+        if(err){
+            return res.send({
+                message:`common Error ${err}`
+            })
+        }
+        if(stderr){
+            return res.send({
+                message:`statement executing Error ${stderr}`
+            })
+        }
+        console.log(`Output : ${stdout}`)
+        res.send({
+            commands:"cd Files && ls -l",
+            out : stdout
+        })
+    })
+
+})
+
+app.get('/execFile',(req,res)=>{
+    execFile('./commands.sh',(err,stdout,stderr)=>{
+        if(err){
+            return res.send({
+                message:`common Error : ${err}`
+            })
+        }
+        if(stderr){
+            return res.send({
+                message:`statement Executing Error : ${stderr}`
+            })
+        }
+        console.log('out :',stdout);
+        res.send({
+            message:"file command",
+            out:stdout
+        })
+    })
+})
+
+app.get('/spawn',(req,res)=>{
+
+    // spawn  didn't know that the directory, sh for shell -c for executing command 
+
+   const ls =  spawn('sh',['-c','pwd && cd Files && pwd && ls -l '])
+
+   let output =''
+   let error =''
+   
+   ls.stdout.on('data',(data)=>{
+    console.log("out : "+data.toString());
+    output +=data.toString()
+   })
+   ls.stderr.on('data',(data)=>{
+    console.log("error :"+data.toString())
+     error +=data
+   })
+   ls.on('exit',(code)=>{
+    console.log("code :",code)
+    if(code !==0){
+        return res.send({
+            message:error
+        })
+    }
+    return res.send({
+        message:output
+    })
+   })
 })
 
 app.listen(port,()=>{
